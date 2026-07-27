@@ -7,6 +7,7 @@ from eye_tracker import get_eye_data
 from blink_detector import BlinkDetector
 from drowsiness_detector import DrowsinessDetector
 from head_pose import estimate_head_pose
+from distraction_detector import DistractionDetector
 
 # ----------------------------
 # Initialize Alarm
@@ -33,6 +34,7 @@ camera = cv2.VideoCapture(0)
 # ----------------------------
 blink_detector = BlinkDetector()
 drowsiness_detector = DrowsinessDetector()
+distraction_detector = DistractionDetector()
 
 # ----------------------------
 # Main Loop
@@ -52,18 +54,34 @@ while True:
 
         face = results.multi_face_landmarks[0]
 
+        # ----------------------------
         # Eye Tracking
+        # ----------------------------
         left_ear, right_ear, average_ear = get_eye_data(face, frame)
 
+        # ----------------------------
         # Head Pose
+        # ----------------------------
         horizontal, vertical = estimate_head_pose(face, frame)
 
+        # ----------------------------
         # Blink Detection
+        # ----------------------------
         blink_detector.update(average_ear, EAR_THRESHOLD)
 
+        # ----------------------------
         # Drowsiness Detection
+        # ----------------------------
         drowsy = drowsiness_detector.is_drowsy(
             blink_detector.closed_frames
+        )
+
+        # ----------------------------
+        # Distraction Detection
+        # ----------------------------
+        distracted = distraction_detector.update(
+            horizontal,
+            vertical
         )
 
         # ----------------------------
@@ -139,9 +157,6 @@ while True:
             2
         )
 
-        # ----------------------------
-        # Head Pose Information
-        # ----------------------------
         cv2.putText(
             frame,
             f"Head : {horizontal}",
@@ -162,20 +177,42 @@ while True:
             2
         )
 
-        # ----------------------------
-        # Drowsiness + Alarm
-        # ----------------------------
-        if drowsy:
+        cv2.putText(
+            frame,
+            f"Look Away : {distraction_detector.get_time()} s",
+            (20, 305),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2
+        )
 
+        if distracted:
             cv2.putText(
                 frame,
-                "DROWSINESS DETECTED!",
-                (20, 310),
+                "DISTRACTED DRIVER!",
+                (20, 340),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (0, 0, 255),
+                (0, 165, 255),
                 3
             )
+
+        # ----------------------------
+        # Alarm Logic
+        # ----------------------------
+        if drowsy or distracted:
+
+            if drowsy:
+                cv2.putText(
+                    frame,
+                    "DROWSINESS DETECTED!",
+                    (20, 380),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 0, 255),
+                    3
+                )
 
             if not alarm_playing:
                 pygame.mixer.music.play(-1)
