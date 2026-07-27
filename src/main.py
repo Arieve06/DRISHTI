@@ -6,6 +6,7 @@ from config import EAR_THRESHOLD
 from eye_tracker import get_eye_data
 from blink_detector import BlinkDetector
 from drowsiness_detector import DrowsinessDetector
+from head_pose import estimate_head_pose
 
 # ----------------------------
 # Initialize Alarm
@@ -51,10 +52,16 @@ while True:
 
         face = results.multi_face_landmarks[0]
 
+        # Eye Tracking
         left_ear, right_ear, average_ear = get_eye_data(face, frame)
 
+        # Head Pose
+        horizontal, vertical = estimate_head_pose(face, frame)
+
+        # Blink Detection
         blink_detector.update(average_ear, EAR_THRESHOLD)
 
+        # Drowsiness Detection
         drowsy = drowsiness_detector.is_drowsy(
             blink_detector.closed_frames
         )
@@ -63,12 +70,9 @@ while True:
         # Eye Status
         # ----------------------------
         if average_ear < EAR_THRESHOLD:
-
             status = "EYE CLOSED"
             color = (0, 0, 255)
-
         else:
-
             status = "EYE OPEN"
             color = (0, 255, 0)
 
@@ -136,6 +140,29 @@ while True:
         )
 
         # ----------------------------
+        # Head Pose Information
+        # ----------------------------
+        cv2.putText(
+            frame,
+            f"Head : {horizontal}",
+            (20, 235),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Vertical : {vertical}",
+            (20, 270),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2
+        )
+
+        # ----------------------------
         # Drowsiness + Alarm
         # ----------------------------
         if drowsy:
@@ -143,7 +170,7 @@ while True:
             cv2.putText(
                 frame,
                 "DROWSINESS DETECTED!",
-                (20, 240),
+                (20, 310),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 0, 255),
@@ -151,17 +178,13 @@ while True:
             )
 
             if not alarm_playing:
-
                 pygame.mixer.music.play(-1)
-
                 alarm_playing = True
 
         else:
 
             if alarm_playing:
-
                 pygame.mixer.music.stop()
-
                 alarm_playing = False
 
     cv2.imshow("DRISHTI", frame)
