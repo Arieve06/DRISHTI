@@ -8,6 +8,7 @@ from blink_detector import BlinkDetector
 from drowsiness_detector import DrowsinessDetector
 from head_pose import estimate_head_pose
 from distraction_detector import DistractionDetector
+from analytics import DriverAnalytics
 
 # ----------------------------
 # Initialize Alarm
@@ -35,6 +36,7 @@ camera = cv2.VideoCapture(0)
 blink_detector = BlinkDetector()
 drowsiness_detector = DrowsinessDetector()
 distraction_detector = DistractionDetector()
+analytics = DriverAnalytics()
 
 # ----------------------------
 # Main Loop
@@ -49,6 +51,8 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     results = face_mesh.process(rgb)
+
+    analytics.update_fps()
 
     if results.multi_face_landmarks:
 
@@ -67,7 +71,14 @@ while True:
         # ----------------------------
         # Blink Detection
         # ----------------------------
-        blink_detector.update(average_ear, EAR_THRESHOLD)
+        blink_detector.update(
+            average_ear,
+            EAR_THRESHOLD
+        )
+
+        analytics.update_blink_rate(
+            blink_detector.blink_count
+        )
 
         # ----------------------------
         # Drowsiness Detection
@@ -85,6 +96,15 @@ while True:
         )
 
         # ----------------------------
+        # Driver Analytics
+        # ----------------------------
+        analytics.update_attention(
+            drowsy,
+            distracted,
+            average_ear
+        )
+
+        # ----------------------------
         # Eye Status
         # ----------------------------
         if average_ear < EAR_THRESHOLD:
@@ -97,40 +117,45 @@ while True:
         # ----------------------------
         # Display Information
         # ----------------------------
+        y = 35
+
+        def put(text, colour=(255, 255, 255)):
+            global y
+
         cv2.putText(
             frame,
             f"Left EAR : {left_ear:.2f}",
             (20, 35),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
-            (0, 255, 0),
+            (0,255,0),
             2
         )
 
         cv2.putText(
             frame,
             f"Right EAR : {right_ear:.2f}",
-            (20, 65),
+            (20,65),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
-            (0, 255, 0),
+            (0,255,0),
             2
         )
 
         cv2.putText(
             frame,
             f"Average EAR : {average_ear:.2f}",
-            (20, 95),
+            (20,95),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
-            (255, 255, 0),
+            (255,255,0),
             2
         )
 
         cv2.putText(
             frame,
             status,
-            (20, 130),
+            (20,130),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             color,
@@ -140,50 +165,90 @@ while True:
         cv2.putText(
             frame,
             f"Blinks : {blink_detector.blink_count}",
-            (20, 165),
+            (20,165),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 0, 0),
+            (255,0,0),
             2
         )
 
         cv2.putText(
             frame,
-            f"Closed Frames : {blink_detector.closed_frames}",
-            (20, 200),
+            f"Blink Rate : {analytics.blink_rate}/min",
+            (20,200),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 255, 0),
+            (255,255,0),
             2
         )
 
         cv2.putText(
             frame,
             f"Head : {horizontal}",
-            (20, 235),
+            (20,235),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 255, 255),
+            (255,255,255),
             2
         )
 
         cv2.putText(
             frame,
             f"Vertical : {vertical}",
-            (20, 270),
+            (20,270),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 255, 255),
+            (255,255,255),
             2
         )
 
         cv2.putText(
             frame,
             f"Look Away : {distraction_detector.get_time()} s",
-            (20, 305),
+            (20,305),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
-            (255, 255, 255),
+            (255,255,255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Session : {analytics.get_session_time()}",
+            (20,340),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0,255,255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"FPS : {analytics.fps}",
+            (20,375),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0,255,255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Attention : {analytics.attention_score}%",
+            (20,410),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0,255,0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Status : {analytics.driver_status}",
+            (20,445),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (255,255,255),
             2
         )
 
@@ -191,10 +256,10 @@ while True:
             cv2.putText(
                 frame,
                 "DISTRACTED DRIVER!",
-                (20, 340),
+                (20,480),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
-                (0, 165, 255),
+                (0,165,255),
                 3
             )
 
@@ -207,10 +272,10 @@ while True:
                 cv2.putText(
                     frame,
                     "DROWSINESS DETECTED!",
-                    (20, 380),
+                    (20,520),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
-                    (0, 0, 255),
+                    (0,0,255),
                     3
                 )
 
