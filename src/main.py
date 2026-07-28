@@ -9,6 +9,12 @@ from drowsiness_detector import DrowsinessDetector
 from head_pose import estimate_head_pose
 from distraction_detector import DistractionDetector
 from analytics import DriverAnalytics
+from ui import draw_ui, draw_warnings
+
+# NEW
+from mouth_tracker import calculate_mar, mouth_status
+from yawn_detector import YawnDetector
+
 
 # ----------------------------
 # Initialize Alarm
@@ -37,6 +43,9 @@ blink_detector = BlinkDetector()
 drowsiness_detector = DrowsinessDetector()
 distraction_detector = DistractionDetector()
 analytics = DriverAnalytics()
+
+# NEW
+yawn_detector = YawnDetector()
 
 # ----------------------------
 # Main Loop
@@ -69,6 +78,15 @@ while True:
         horizontal, vertical = estimate_head_pose(face, frame)
 
         # ----------------------------
+        # Mouth Tracking
+        # ----------------------------
+        mar = calculate_mar(face, frame)
+
+        mouth = mouth_status(mar)
+
+        yawning, yawn_count = yawn_detector.update(mar)
+
+        # ----------------------------
         # Blink Detection
         # ----------------------------
         blink_detector.update(
@@ -96,12 +114,13 @@ while True:
         )
 
         # ----------------------------
-        # Driver Analytics
+        # Analytics
         # ----------------------------
         analytics.update_attention(
             drowsy,
             distracted,
-            average_ear
+            average_ear,
+            yawning
         )
 
         # ----------------------------
@@ -115,153 +134,37 @@ while True:
             color = (0, 255, 0)
 
         # ----------------------------
-        # Display Information
+        # Display
         # ----------------------------
-        y = 35
+       
+           
 
-        def put(text, colour=(255, 255, 255)):
-            global y
+        draw_ui(
+    frame,
+    left_ear,
+    right_ear,
+    average_ear,
+    status,
+    color,
+    blink_detector,
+    analytics,
+    horizontal,
+    vertical,
+    mar,
+    mouth,
+    yawn_count,
+    distraction_detector
+)
 
-        cv2.putText(
-            frame,
-            f"Left EAR : {left_ear:.2f}",
-            (20, 35),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0,255,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Right EAR : {right_ear:.2f}",
-            (20,65),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0,255,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Average EAR : {average_ear:.2f}",
-            (20,95),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255,255,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            status,
-            (20,130),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            color,
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Blinks : {blink_detector.blink_count}",
-            (20,165),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,0,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Blink Rate : {analytics.blink_rate}/min",
-            (20,200),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,255,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Head : {horizontal}",
-            (20,235),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,255,255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Vertical : {vertical}",
-            (20,270),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,255,255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Look Away : {distraction_detector.get_time()} s",
-            (20,305),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255,255,255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Session : {analytics.get_session_time()}",
-            (20,340),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0,255,255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"FPS : {analytics.fps}",
-            (20,375),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0,255,255),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Attention : {analytics.attention_score}%",
-            (20,410),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0,255,0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Status : {analytics.driver_status}",
-            (20,445),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.9,
-            (255,255,255),
-            2
-        )
-
-        if distracted:
-            cv2.putText(
-                frame,
-                "DISTRACTED DRIVER!",
-                (20,480),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0,165,255),
-                3
-            )
+        # ----------------------------
+        # Warning Messages
+        # ----------------------------
+        draw_warnings(
+    frame,
+    distracted,
+    drowsy,
+    yawning
+)
 
         # ----------------------------
         # Alarm Logic
@@ -272,7 +175,7 @@ while True:
                 cv2.putText(
                     frame,
                     "DROWSINESS DETECTED!",
-                    (20,520),
+                    (650,120),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
                     (0,0,255),
@@ -293,6 +196,7 @@ while True:
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
+
 
 camera.release()
 pygame.mixer.music.stop()

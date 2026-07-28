@@ -71,7 +71,8 @@ class DriverAnalytics:
         self,
         drowsy,
         distracted,
-        average_ear
+        average_ear,
+        yawning
     ):
 
         score = 100
@@ -85,8 +86,10 @@ class DriverAnalytics:
         if average_ear < 0.20:
             score -= 20
 
-        if score < 0:
-            score = 0
+        if yawning:
+            score -= 15
+
+        score = max(0, score)
 
         self.attention_score = score
 
@@ -104,4 +107,3 @@ class DriverAnalytics:
 
         else:
             self.driver_status = "CRITICAL"
-            
