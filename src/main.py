@@ -9,6 +9,7 @@ from drowsiness_detector import DrowsinessDetector
 from head_pose import estimate_head_pose
 from distraction_detector import DistractionDetector
 from analytics import DriverAnalytics
+from logger import SessionLogger
 from ui import draw_ui, draw_warnings
 
 # NEW
@@ -43,6 +44,7 @@ blink_detector = BlinkDetector()
 drowsiness_detector = DrowsinessDetector()
 distraction_detector = DistractionDetector()
 analytics = DriverAnalytics()
+logger = SessionLogger()
 
 # NEW
 yawn_detector = YawnDetector()
@@ -122,6 +124,16 @@ while True:
             average_ear,
             yawning
         )
+        logger.log(
+    session_time=analytics.get_session_time(),
+    ear=average_ear,
+    mar=mar,
+    blink_count=blink_detector.blink_count,
+    yawn_count=yawn_count,
+    head_direction=horizontal,
+    attention_score=analytics.attention_score,
+    driver_status=analytics.driver_status
+)
 
         # ----------------------------
         # Eye Status
